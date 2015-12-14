@@ -1,0 +1,106 @@
+package common.demo;
+
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
+
+import common.IChatUser;
+import common.IInitUser;
+import provided.rmiUtils.IRMIUtils;
+import provided.rmiUtils.IRMI_Defs;
+import provided.rmiUtils.RMIUtils;
+import provided.util.IVoidLambda;
+
+/**
+ * A helper class to get user online. 
+ */
+public class Bootstrap {
+
+	/**
+	 * RMI utility to get Registry. 
+	 */
+	private IRMIUtils rmiUtils = new RMIUtils(new IVoidLambda<String>() {
+
+		@Override
+		public void apply(String... params) {
+		}
+
+	});
+
+	/**
+	 * Constructs a bootstrap. 
+	 */
+	public Bootstrap() {
+	}
+
+	/**
+	 * Returns the IP of this computer. 
+	 * @return the IP of this computer. 
+	 */
+	public String getIP() {
+		return System.getProperty("java.rmi.server.hostname");
+	}
+
+	/**
+	 * Returns the initial stub of remote me. 
+	 * @param me - the remote to local adapter. 
+	 * @return the initial stub of remote me. 
+	 */
+	public IInitUser register(IInitUser me) {
+		try {
+			IInitUser stub = (IInitUser) UnicastRemoteObject.exportObject(me, IInitUser.BOUND_PORT_CLIENT);
+			rmiUtils.startRMI(IRMI_Defs.CLASS_SERVER_PORT_SERVER);
+			rmiUtils.getLocalRegistry().rebind(IInitUser.BOUND_NAME, stub);
+			System.out.println("Created remote me. ");
+			return stub;
+		} catch (RemoteException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	/**
+	 * Returns the chatroom stub of remote me. 
+	 * @param me - the remote to chatroom adapter. 
+	 * @return the chatroom stub of remote me. 
+	 */
+	public IChatUser register(IChatUser me) {
+		try {
+			IChatUser stub = (IChatUser) UnicastRemoteObject.exportObject(me, IChatUser.BOUND_PORT_CLIENT);
+			System.out.println("Created remote me in chatroom. ");
+			return stub;
+		} catch (RemoteException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	/**
+	 * Returns the remote friend. 
+	 * @param userIP - friend's IP address. 
+	 * @return the remote friend. 
+	 */
+	public IInitUser connectToUser(String userIP) {
+		try {
+			IInitUser stub = (IInitUser) rmiUtils.getRemoteRegistry(userIP).lookup(IInitUser.BOUND_NAME);
+			System.out.println("Found remote friend. ");
+			return stub;
+		} catch (RemoteException | NotBoundException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	/**
+	 * Goes offline. 
+	 */
+	public void shutdown() {
+		try {
+			rmiUtils.getLocalRegistry().unbind(IInitUser.BOUND_NAME);
+			rmiUtils.stopRMI();
+		} catch (RemoteException | NotBoundException e) {
+			e.printStackTrace();
+		}
+	}
+
+}
